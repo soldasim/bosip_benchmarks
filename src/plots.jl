@@ -12,7 +12,7 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         "loglike" => "GP - loglike - MaxVar",
         "loglike-imiqr" => "GP - loglike - IMIQR",
         "eiv" => "GP - output - EIV",
-        "eiig" => "GP - output - EIMMD",
+        "eiig" => "GP - output - IMMD",
         "nongp" => "nonGP - output - MaxVar",
     ]) # TODO
     title = "AB Problem" # TODO

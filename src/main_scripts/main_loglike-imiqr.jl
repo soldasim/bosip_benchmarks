@@ -59,7 +59,7 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     ### ACQUISITION ###
     # acquisition = MaxVar()
     # acquisition = LogMaxVar()
-    # acquisition = EIMMD(;
+    # acquisition = IMMD(;
     #     y_samples = 20,
     #     x_samples = 2 * 10^x_dim(problem),
     #     x_proposal = x_prior(problem),
