@@ -1,5 +1,3 @@
-using Random
-Random.seed!(555)
 
 function generate_starts(problem::AbstractProblem, n_runs::Int)
     init_data_count = 3
