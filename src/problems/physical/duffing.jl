@@ -40,6 +40,7 @@ using BOSS
 using BOSIP
 using Distributions
 using DifferentialEquations
+using JLD2
 
 
 # --- API ---
@@ -62,7 +63,7 @@ est_amplitude(::DuffingProblem) = _get_est_amplitude()
 est_noise_std(::DuffingProblem) = nothing
 
 # true_f(::DuffingProblem) = model_target
-reference_samples(::DuffingProblem) = load("duffing_ref.jld2")["xs"]
+reference_samples(::DuffingProblem) = load(joinpath(@__DIR__, "duffing_ref.jld2"))["xs"]
 
 
 # --- UTILS ---
@@ -78,7 +79,7 @@ const x_ref = [0.15, -1.0, 0.5]
 const t_span = (0.0, 10.0)  # simulation time span
 const t_transient = 0.0     # transient time to ignore
 const save_freq = 0.05
-const n_obs = 4             # number of observation points
+const n_obs = 1             # number of observation points
 
 # Noise parameters
 const std_obs = fill(0.1, n_obs)  # observation noise
