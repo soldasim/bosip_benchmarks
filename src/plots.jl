@@ -210,13 +210,13 @@ function calculate_score(metric::SampleMetric, problem::AbstractProblem, p::Bosi
 
     ref = reference(problem)
     if ref isa Function
-        true_samples = BOSIP.pure_sample_posterior(sampler, ref, p.problem.domain, sample_count)
+        true_samples = sample_posterior_pure(sampler, ref, p.problem.domain, sample_count)
     else
         true_samples = ref
     end
 
     est_logpost = log_posterior_estimate()(p)
-    approx_samples = BOSIP.pure_sample_posterior(sampler, est_logpost, p.problem.domain, sample_count)
+    approx_samples = sample_posterior_pure(sampler, est_logpost, p.problem.domain, sample_count)
 
     score = calculate_metric(metric, true_samples, approx_samples)
     return score

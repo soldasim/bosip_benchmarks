@@ -61,8 +61,8 @@ function sample_ref_mmd(ref::Function, domain::Domain, mmd_samples::Int, x_sampl
     ### the calculation
     mmd_vals = Float64[]
     for i in 1:mmd_samples
-        xs_a = BOSIP.pure_sample_posterior(sampler, ref_logpost, domain, x_samples)
-        xs_b = BOSIP.pure_sample_posterior(sampler, ref_logpost, domain, x_samples)
+        xs_a = sample_posterior_pure(sampler, ref_logpost, domain, x_samples)
+        xs_b = sample_posterior_pure(sampler, ref_logpost, domain, x_samples)
 
         val = calculate_metric(metric, xs_a, xs_b)
         push!(mmd_vals, val)

@@ -69,11 +69,11 @@ function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::Distributi
     ### sample posterior
     # TODO
     # if ref isa Function
-    #     true_samples = BOSIP.pure_sample_posterior(sampler, ref, domain, sample_count)
+    #     true_samples = sample_posterior_pure(sampler, ref, domain, sample_count)
     # else
     #     true_samples = ref
     # end
-    # approx_samples = BOSIP.pure_sample_posterior(sampler, est_logpost, domain, sample_count) 
+    # approx_samples = sample_posterior_pure(sampler, est_logpost, domain, sample_count) 
 
 
     ### ### ### THE FIGURE ### ### ###
