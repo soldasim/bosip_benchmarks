@@ -21,7 +21,8 @@ function queue_jobs(problem::AbstractProblem, run_name::String; selected_runs=no
         # main(; run_name, save_data=true, data, run_idx)
         @info "Queuing run: problem:\"$(problem_name)\", run_name:\"$(run_name)\", run_idx:\"$(run_idx)\""
         # TODO --mem (the code was failing with the `SimpleProblem` with the default 4G memory)
-        Base.run(`sbatch -p cpulong --mem=16G cluster_scripts/run.sh $problem_name $run_name $run_idx`)
+        job_name = "$(problem_name)_$(run_name)_$(run_idx)"
+        Base.run(`sbatch -p cpulong --mem=16G --job-name=$job_name cluster_scripts/run.sh $problem_name $run_name $run_idx`)
     end
 
     nothing
