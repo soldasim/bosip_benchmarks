@@ -173,6 +173,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
             kernel = GaussianKernel(),
             bounds,
             algorithm = BOBYQA(),
+            rhoend = 1e-4,
         ),
     )
     # first callback in `callbacks` (this is important for `SaveCallback`)

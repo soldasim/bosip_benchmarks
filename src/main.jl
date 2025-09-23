@@ -75,8 +75,8 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     
     
     ### ACQUISITION ###
-    acquisition = MaxVar()
-    # acquisition = LogMaxVar()
+    # acquisition = MaxVar()
+    acquisition = LogMaxVar()
     # acquisition = IMMD(;
     #     y_samples = 20,
     #     x_samples = 2 * 10^x_dim(problem),
@@ -180,6 +180,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
             kernel = GaussianKernel(),
             bounds,
             algorithm = BOBYQA(),
+            rhoend = 1e-4,
         ),
         # metric = TVMetric(;
         #     grid = xs,
