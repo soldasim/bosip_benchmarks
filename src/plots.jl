@@ -15,7 +15,7 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         "eiig" => "GP - output - IMMD",
         "nongp" => "nonGP - output - MaxVar",
     ]) # TODO
-    title = "AB Problem" # TODO
+    title = problems[1] |> typeof |> nameof |> string # TODO
     ylabel = "OptMMD" # TODO
     ###
 
@@ -40,8 +40,10 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         if !allequal(length.(scores))
             maxlen = maximum(length.(scores))
             successful = sum(length.(scores) .== maxlen)
+            failed = findall(length.(scores) .!= maxlen)
             @warn "Scores for group \"$group\" have different lengths! Padding with `missing`.
-            ($successful/$(length(scores)) runs have the max length of $maxlen)"
+            ($successful/$(length(scores)) runs have the max length of $maxlen,
+            runs $failed did not finish)"
         end
         padded = [vcat(s, fill(missing, maxlen - length(s))) for s in scores]
         arr = reduce(hcat, padded)
@@ -72,7 +74,9 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
 
     # plot reference opt_mmd values
     p = problems[1]
-    ref_optmmd_file = joinpath(data_dir(p), "opt_mmd", "mmd_vals.jld2")
+    ref_sample_count = 200
+    @warn "CHECK THAT THE OptMMD METRIC HAS BEEN CALCULATED WITH $ref_sample_count SAMPLES!"
+    ref_optmmd_file = joinpath(data_dir(p), "opt_mmd", "mmd_vals_$(ref_sample_count).jld2")
     if isfile(ref_optmmd_file)
         mmd_vals = load(ref_optmmd_file)["mmd_vals"]
         lq = quantile(mmd_vals, 0.1)
@@ -86,7 +90,9 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
     end
 
     # axislegend(ax)
-    axislegend(ax; position=:rc)
+    # axislegend(ax; position=:rt)
+    # axislegend(ax; position=:rc)
+    axislegend(ax; position=:lb)
 
     save_plot && save(plot_dir() * "/" * plot_name(problems) * ".png", fig)
     fig
