@@ -163,24 +163,35 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
     xs = rand(bosip.x_prior, 20 * 10^x_dim(problem))
     ws = exp.( (0.) .- logpdf.(Ref(bosip.x_prior), eachcol(xs)) )
 
+    # metric_ = MMDMetric(;
+    #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
+    # )
+    metric_ = OptMMDMetric(;
+        kernel = GaussianKernel(),
+        bounds,
+        algorithm = BOBYQA(),
+        rhoend = 1e-4,
+    )
+    # metric_ = TVMetric(;
+    #     grid = xs,
+    #     ws = ws,
+    # )
+
+    # Get a reference appropriate for the used metric is available.
+    if metric_ isa PDFMetric
+        ref = true_logpost(problem)
+    else
+        ref = reference_samples(problem)
+        isnothing(ref) && (ref = true_logpost(problem))
+    end
+    @assert !isnothing(ref)
+
     metric_cb = MetricCallback(;
-        reference = reference(problem),
+        reference = ref,
         logpost_estimator = log_posterior_estimate(problem),
         sampler,
         sample_count = 2 * 10^x_dim(problem),
-        # metric = MMDMetric(;
-        #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
-        # ),
-        # metric = OptMMDMetric(;
-        #     kernel = GaussianKernel(),
-        #     bounds,
-        #     algorithm = BOBYQA(),
-        #     rhoend = 1e-4,
-        # ),
-        metric = TVMetric(;
-            grid = xs,
-            ws = ws,
-        ),
+        metric = metric_,
     )
     # first callback in `callbacks` (this is important for `SaveCallback`)
     callbacks = BosipCallback[]

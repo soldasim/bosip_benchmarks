@@ -69,7 +69,7 @@ est_amplitude(::LogDuffingProblem) = [1000.] # TODO ???
 est_noise_std(::LogDuffingProblem) = nothing
 
 # TODO loglike
-# true_f(::LogDuffingProblem) = model_target
+true_f(::LogDuffingProblem) = model_target
 # reference_samples(::LogDuffingProblem) = load(joinpath(@__DIR__, "duffing_ref.jld2"))["xs"]
 reference_samples(::LogDuffingProblem) = load(joinpath(@__DIR__, "duffing_log_ref.jld2"))["xs"]
 

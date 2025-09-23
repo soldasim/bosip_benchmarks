@@ -62,7 +62,7 @@ est_amplitude(::DuffingProblem) = _get_est_amplitude()
 # TODO noise
 est_noise_std(::DuffingProblem) = nothing
 
-# true_f(::DuffingProblem) = model_target
+true_f(::DuffingProblem) = model_target
 reference_samples(::DuffingProblem) = load(joinpath(@__DIR__, "duffing_ref.jld2"))["xs"]
 
 
