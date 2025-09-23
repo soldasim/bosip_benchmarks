@@ -14,10 +14,6 @@ using ProgressMeter
 using Random
 Random.seed!(555)
 
-# TODO
-log_posterior_estimate() = log_posterior_mean
-# log_posterior_estimate() = log_approx_posterior
-
 parallel() = false # PRIMA.jl causes StackOverflow when parallelized on Linux
 
 include(pwd() * "/src/include_code.jl")
@@ -169,7 +165,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
 
     metric_cb = MetricCallback(;
         reference = reference(problem),
-        logpost_estimator = log_posterior_estimate(),
+        logpost_estimator = log_posterior_estimate(problem),
         sampler,
         sample_count = 2 * 10^x_dim(problem),
         # metric = MMDMetric(;

@@ -32,7 +32,7 @@ function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::Distributi
     X = bosip.problem.data.X
     
     ### log-posteriors
-    est_logpost = log_posterior_estimate()(bosip)
+    est_logpost = log_posterior_estimate(p)(bosip)
     if ref isa Function
         ref_logpost = ref
     end
@@ -79,7 +79,7 @@ function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::Distributi
     ### ### ### THE FIGURE ### ### ###
     fig = Figure()
     # TODO title
-    title = string(log_posterior_estimate()) |> exp_title
+    title = string(log_posterior_estimate(p)) |> exp_title
     # title = "Loglikelihood Model"
     
     ax = Axis(
