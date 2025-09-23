@@ -41,7 +41,8 @@ function (cb::SaveCallback)(problem::BosipProblem; first, model_fitter, acq_maxi
     if !isempty(options.callback.callback.callbacks)
         metric_cb = options.callback.callback.callbacks[1]
         if metric_cb isa MetricCallback
-            save(cb.dir * "/" * cb.filename * "_metric.jld2", Dict(
+            metricT = Base.typename(typeof(metric_cb.metric)).wrapper
+            save(cb.dir * "/" * cb.filename * "_$(metric_fname(metricT)).jld2", Dict(
                 "score" => metric_cb.score_history,
                 "metric" => metric_cb,
             ))

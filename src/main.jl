@@ -9,6 +9,7 @@ using Bijectors
 using JLD2
 using Glob
 using CairoMakie
+using ProgressMeter
 
 using Random
 Random.seed!(555)
@@ -163,29 +164,27 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
 
     
     ### PERFORMANCE METRIC ###
-    sample_count = 20 * 10^x_dim(problem)
-
-    xs = rand(bosip.x_prior, sample_count)
+    xs = rand(bosip.x_prior, 20 * 10^x_dim(problem))
     ws = exp.( (0.) .- logpdf.(Ref(bosip.x_prior), eachcol(xs)) )
 
     metric_cb = MetricCallback(;
         reference = reference(problem),
         logpost_estimator = log_posterior_estimate(),
         sampler,
-        sample_count,
+        sample_count = 2 * 10^x_dim(problem),
         # metric = MMDMetric(;
         #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
         # ),
-        metric = OptMMDMetric(;
-            kernel = GaussianKernel(),
-            bounds,
-            algorithm = BOBYQA(),
-            rhoend = 1e-4,
-        ),
-        # metric = TVMetric(;
-        #     grid = xs,
-        #     ws = ws,
+        # metric = OptMMDMetric(;
+        #     kernel = GaussianKernel(),
+        #     bounds,
+        #     algorithm = BOBYQA(),
+        #     rhoend = 1e-4,
         # ),
+        metric = TVMetric(;
+            grid = xs,
+            ws = ws,
+        ),
     )
     # first callback in `callbacks` (this is important for `SaveCallback`)
     callbacks = BosipCallback[]

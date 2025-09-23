@@ -161,6 +161,9 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
 
     
     ### PERFORMANCE METRIC ###
+    xs = rand(bosip.x_prior, 20 * 10^x_dim(problem))
+    ws = exp.( (0.) .- logpdf.(Ref(bosip.x_prior), eachcol(xs)) )
+
     metric_cb = MetricCallback(;
         reference = reference(problem),
         logpost_estimator = log_posterior_estimate(),
@@ -169,11 +172,15 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
         # metric = MMDMetric(;
         #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
         # ),
-        metric = OptMMDMetric(;
-            kernel = GaussianKernel(),
-            bounds,
-            algorithm = BOBYQA(),
-            rhoend = 1e-4,
+        # metric = OptMMDMetric(;
+        #     kernel = GaussianKernel(),
+        #     bounds,
+        #     algorithm = BOBYQA(),
+        #     rhoend = 1e-4,
+        # ),
+        metric = TVMetric(;
+            grid = xs,
+            ws = ws,
         ),
     )
     # first callback in `callbacks` (this is important for `SaveCallback`)

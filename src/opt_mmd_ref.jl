@@ -1,12 +1,4 @@
-using BOSS, BOSIP
-using BOSS.KernelFunctions
-using OptimizationPRIMA
-using CairoMakie
-using Random
-using JLD2
-
 include("main.jl")
-Random.seed!(555)
 
 # Compute the MMD score of two sample sets, both from the true (reference) posterior,
 # multiple times, to determine the sensitivity of the "maximum MMD" metric.
