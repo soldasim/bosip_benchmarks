@@ -1,6 +1,6 @@
 module PlotModule
 
-using BOSIP
+using BOSIP, BOSS
 using CairoMakie
 
 import ..AbstractProblem
@@ -80,31 +80,35 @@ function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::Distributi
     fig = Figure()
     # TODO title
     title = string(log_posterior_estimate(p)) |> exp_title
-    # title = "Loglikelihood Model"
+    # title = "Log-Likelihood Model"
+    # title = "Simulator Output Model"
+    # title = bosip.problem.acquisition.acq |> typeof |> nameof |> string
     
     ax = Axis(
         fig[1, 1],
         xlabel="x₁", ylabel="x₂",
+        # xlabel="a", ylabel="b",
         title=title,
         xlabelsize=20, ylabelsize=20, titlesize=20,
         xticklabelsize=16, yticklabelsize=16
     )
 
     ### contour fill
-    # contourf!(ax, x, y, Z)
+    contourf!(ax, x, y, Z_est)
 
     ### samples
     # TODO
-    # scatter!(ax, true_samples[1, :], true_samples[2, :], color=:blue, marker=:x, markersize=4) # label="Reference Samples"
+    # scatter!(ax, true_samples[1, :], true_samples[2, :], color=:grey, marker=:x, markersize=4) # label="Reference Samples"
     # scatter!(ax, approx_samples[1, :], approx_samples[2, :], color=:red, marker=:x, markersize=4) # label="Approx. Samples"
 
     ### data
-    scatter!(ax, X[1,:], X[2,:], color=:white, markersize=6)
-    scatter!(ax, X[1,:], X[2,:], color=:black, markersize=4, label="Data")
+    scatter!(ax, X[1,:], X[2,:], color=:white, markersize=7)
+    scatter!(ax, X[1,:], X[2,:], color=:black, markersize=5, label="Data")
+    scatter!(ax, X[1,end:end], X[2,end:end], color=:red, markersize=5, label="newest") # TODO
     
     ### contours
     if ref isa Function
-        contour!(ax, x, y, Z_ref; levels=cs_ref, color=:blue)
+        contour!(ax, x, y, Z_ref; levels=cs_ref, linestyle=:dash, color=:grey)
     end
     contour!(ax, x, y, Z_est; levels=cs_est, color=:red)
 
