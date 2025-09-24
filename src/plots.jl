@@ -1,14 +1,9 @@
 include("main.jl")
 
-plot_results(problem::AbstractProblem; kwargs...) = plot_results([problem]; kwargs...)
+axis_size() = (400, 300)
 
-function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, yscale=log)
-    ### setings
-    # TODO metric
-    metric = OptMMDMetric
-    # metric = TVMetric
-    
-    plotted_groups = ["loglike", "loglike-imiqr", "standard", "eiv", "eiig", "nongp"] # TODO
+function get_run_label(abbr::String)
+    # TODO
     group_labels = Dict([
         "standard" => "GP - output - MaxVar",
         "loglike" => "GP - loglike - MaxVar",
@@ -16,16 +11,101 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         "eiv" => "GP - output - EIV",
         "eiig" => "GP - output - IMMD",
         "nongp" => "nonGP - output - MaxVar",
-    ]) # TODO
+    ])
+    return get(group_labels, abbr, abbr)
+end
+
+### Create a grid of plots for the individual problems
+### (Edit plotted runs in `plotted groups`.)
+function plot_results(; save_plot=false, kwargs...)
+    # TODO
+    problems = [
+        ABProblem()             SimpleProblem()         BananaProblem()         BimodalProblem()
+        :legend                 "SIR placeholder"       "Duffing placeholder"   "Diffusion placeholder"
+    ]
+
+    nrows, ncols = size(problems)
+    ax_width, ax_height = axis_size()
+    fig = Figure(;
+        size = (ax_width * ncols, ax_height * nrows),
+    )
+
+    for idx in CartesianIndices(problems)
+        if problems[idx] isa AbstractProblem
+            ps = AbstractProblem[problems[idx]]
+            plot_result_axis!(fig[idx.I...], ps; legend=false, kwargs...)
+        else
+            val = problems[idx]
+            plot_result_special!(fig[idx.I...], fig, val; kwargs...)
+        end
+    end
+
+    # Set all columns and rows to the same size
+    for col in 1:ncols
+        colsize!(fig.layout, col, Relative(1 / ncols))
+    end
+    for row in 1:nrows
+        rowsize!(fig.layout, row, Relative(1 / nrows))
+    end
+
+    save_plot && save(plot_dir() * "/all_problems.png", fig)
+    return fig
+end
+
+### Create a single plot with the runs of the given problems
+### (Edit plotted runs in `plotted groups`.)
+plot_results(problem::AbstractProblem; kwargs...) = plot_results([problem]; kwargs...)
+function plot_results(problems::AbstractVector; save_plot=false, kwargs...)
+    fig = Figure()
+    
+    plot_result_axis!(fig[1,1], problems; kwargs...)
+    
+    save_plot && save(plot_dir() * "/" * plot_name(problems) * ".png", fig)
+    return fig
+end
+
+function plot_result_special!(figpos::GridPosition, fig::Figure, symbol::Symbol; kwargs...)
+    (symbol == :nothing) && return
+
+    if symbol == :legend
+        Legend(figpos, fig.content[1], "Legend"; titleposition=:left)
+
+    else
+        @warn "Unknown special plot symbol: $symbol"
+        @assert false
+    end
+end
+function plot_result_special!(figpos::GridPosition, fig::Figure, str::String; kwargs...)
+    Label(figpos, str)
+end
+
+function plot_result_axis!(figpos::GridPosition, problems::AbstractVector{<:AbstractProblem};
+    xscale = log10,
+    yscale = log,
+    legend = true,
+)
+    ################
+    ### SETTINGS ###
+    ################
+
+    # TODO metric
+    # metric = OptMMDMetric
+    metric = TVMetric
+
+    # TODO groups
+    plotted_groups = ["loglike-imiqr", "loglike", "standard", "eiv", "eiig", "nongp"]
+
+    # include log versions of the problems as well
+    add_log_versions!(problems)
     
     title = problems[1] |> typeof |> nameof |> string # TODO
+    title = title[1:end-7]  # remove "Problem" suffix
     ylabel = string(metric)[1:end-6]  # remove "Metric" suffix
     ###
 
     scores_by_group = load_stored_scores!(problems, metric)
 
-    fig = Figure()
-    ax = Axis(fig[1, 1]; xlabel="Iteration", ylabel, title, xscale, yscale)
+    ax = Axis(figpos; xlabel="Iteration", ylabel, title, xscale, yscale)
 
     colors = Makie.wong_colors()  # or use any preferred color palette
     group_names = collect(keys(scores_by_group))
@@ -57,7 +137,7 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         end
         
         # Plot median line
-        label = get(group_labels, group, group)
+        label = get_run_label(group)
         median_scores = mapslices(median∘skipmissing, arr; dims=2)[:]
         lines!(ax, xs, median_scores; label, color=color)
         
@@ -92,17 +172,32 @@ function plot_results(problems::AbstractVector; save_plot=false, xscale=log10, y
         end
     end
 
-    # axislegend(ax)
-    # axislegend(ax; position=:rt)
-    # axislegend(ax; position=:rc)
-    axislegend(ax; position=:lb)
+    if legend
+        # axislegend(ax)
+        # axislegend(ax; position=:rt)
+        # axislegend(ax; position=:rc)
+        axislegend(ax; position=:lb)
+    end
 
-    save_plot && save(plot_dir() * "/" * plot_name(problems) * ".png", fig)
-    fig
+    return ax
 end
 
 plot_name(problems::AbstractVector) = join(plot_name.(problems), "_")
 plot_name(problem::AbstractProblem) = string(typeof(problem))
+
+function add_log_versions!(problems::AbstractVector{<:AbstractProblem})
+    for p in problems
+        pname = p |> typeof |> nameof |> string
+        startswith(pname, "Log") && continue
+        logpname = "Log" * pname
+        if hasproperty(Main, Symbol(logpname))
+            logp = getproperty(Main, Symbol(logpname))()
+            @warn "Adding $logpname to the list of plotted problems."
+            push!(problems, logp)
+        end
+    end
+    return problems
+end
 
 function load_stored_scores!(problems::AbstractVector, metricT::Type{<:DistributionMetric}; kwargs...)
     return merge(load_stored_scores!.(problems, Ref(metricT); kwargs...)...)
