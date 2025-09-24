@@ -13,10 +13,7 @@ OpenSSL_jll = "458c3c95-2e84-50aa-8efc-19380b2a3a95"
 OptimizationPRIMA = "72f8369c-a2ea-4298-9126-56167ce9cbc2"
 PRIMA = "0a7d04aa-8ac2-47b3-b7a7-9dbd6ad661ed"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
-PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
-PythonCall = "6099a3de-0909-46bc-b1f4-468b9a2dfc0d"
 StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
 
 [compat]
 OpenSSL_jll = "3.0.0 - 3.4"
-PythonCall = "=0.9.26"

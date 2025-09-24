@@ -3,6 +3,8 @@ This repo contains benchmarks of the BOSIP.jl method.
 
 # Installation
 
+**OUTDATED: This complex installation is no longer needed. Python is no longer used anywhere. :)** Just install julia and use the /src environment.
+
 The installation and the startup are quite complex due to using PyCall.jl and PythonCall.jl simultaneously. PythonCall/JuliaCall are neede for some SBIBM tasks. PyCall.jl is much nicer to use for me.
 
 PC:
@@ -28,6 +30,8 @@ Then:
 - `] add ...`
 
 # Startup (on every run)
+
+**OUTDATED: This complex startup is no longer needed. Python is no longer used anywhere. :)** Just run julia and use the /src environment.
 
 Evaluate the script `sh julia.sh`, which will set up everything (including activating all environments) and start a Julia REPL.
 
