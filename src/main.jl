@@ -28,6 +28,7 @@ include(pwd() * "/src/include_code.jl")
 # LogSimpleProblem
 # LogSIRProblem
 
+### START A NEW RUN ###
 function main(problem::AbstractProblem; data=nothing, kwargs...)
     ### SETTINGS ###
     init_data_count = 3
@@ -104,8 +105,39 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     return main(problem, bosip; kwargs...)
 end
 
-# for continuing an experiment (mainly for debugging)
-function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", save_data=false, metric=false, plots=false, run_idx=nothing)
+### CONTINUE A RUN ###
+function main_continue(problem::AbstractProblem, run_name::String, run_idx::Union{Nothing, Int}; kwargs...)
+    # # check the filename just to be sure
+    # fname = basename(@__FILE__)
+    # fname_split = split(fname, ['.', '_'])
+    # @assert length(fname_split) == 3
+    # @assert fname_split[2] == run_name
+
+    # load the saved BOSIP problem
+    if isnothing(run_idx)
+        file = joinpath(data_dir(problem), "$(run_name)_problem.jld2")
+    else
+        file = joinpath(data_dir(problem), "$(run_name)_$(run_idx)_problem.jld2")
+    end
+    bosip = load(file)["problem"]
+    @assert bosip isa BosipProblem
+
+    # assert iters
+    data_count = size(bosip.problem.data.X, 2)
+    @assert data_count == 3 + 10 # TODO
+
+    # continue
+    return main(problem, bosip; continued=true, run_name, run_idx, kwargs...)
+end
+
+function main(problem::AbstractProblem, bosip::BosipProblem;
+    run_name = "test",
+    save_data = false,
+    metric = false,
+    plots = false,
+    run_idx = nothing,
+    continued = false,
+)
     bounds = bosip.problem.domain.bounds
 
     ### ALGORITHMS ###
@@ -124,7 +156,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
 
     
     ### TERMINATION CONDITION ###
-    term_cond = IterLimit(100) # TODO
+    term_cond = IterLimit(10) # TODO
 
 
     ### SAMPLER ###
@@ -166,16 +198,16 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
     # metric_ = MMDMetric(;
     #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
     # )
-    metric_ = OptMMDMetric(;
-        kernel = GaussianKernel(),
-        bounds,
-        algorithm = BOBYQA(),
-        rhoend = 1e-4,
-    )
-    # metric_ = TVMetric(;
-    #     grid = xs,
-    #     ws = ws,
+    # metric_ = OptMMDMetric(;
+    #     kernel = GaussianKernel(),
+    #     bounds,
+    #     algorithm = BOBYQA(),
+    #     rhoend = 1e-4,
     # )
+    metric_ = TVMetric(;
+        grid = xs,
+        ws = ws,
+    )
 
     # Get a reference appropriate for the used metric is available.
     if metric_ isa PDFMetric
@@ -186,13 +218,17 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
     end
     @assert !isnothing(ref)
 
-    metric_cb = MetricCallback(;
-        reference = ref,
-        logpost_estimator = log_posterior_estimate(problem),
-        sampler,
-        sample_count = 2 * 10^x_dim(problem),
-        metric = metric_,
-    )
+    if continued
+        metric_cb = reload_metric_cb(metric_, problem, run_name, run_idx)
+    else
+        metric_cb = MetricCallback(;
+            reference = ref,
+            logpost_estimator = log_posterior_estimate(problem),
+            sampler,
+            sample_count = 2 * 10^x_dim(problem),
+            metric = metric_,
+        )
+    end
     # first callback in `callbacks` (this is important for `SaveCallback`)
     callbacks = BosipCallback[]
     metric && push!(callbacks, metric_cb)
@@ -214,6 +250,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
     data_cb = SaveCallback(;
         dir = data_dir(problem),
         filename = base_filename(problem, run_name, run_idx),
+        continued,
     )
     save_data && push!(callbacks, data_cb)
 
@@ -227,18 +264,19 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="test", sa
     return bosip
 end
 
-# function run(problem::AbstractProblem)
-#     run_name = "loglike" # the name used for storing data from this run
-
-#     start_files = Glob.glob(starts_dir(problem) * "/start_*.jld2")
-#     @info "Running $(length(start_files)) runs of the $(typeof(problem)) ..."
+### for continuing runs ###
+function reload_metric_cb(metric::DistributionMetric, problem::AbstractProblem, run_name::String, run_idx::Union{Nothing, Int})
+    dir = data_dir(problem)
+    if isnothing(run_idx)
+        metric_file = dir * "/$(run_name)_$(metric_fname(Base.typename(typeof(metric)).wrapper)).jld2"
+    else
+        metric_file = dir * "/$(run_name)_$(run_idx)_$(metric_fname(Base.typename(typeof(metric)).wrapper)).jld2"
+    end
     
-#     for start_file in start_files
-#         m = match(r"start_(\d+)\.jld2$", start_file)
-#         run_idx = parse(Int, m.captures[1])
-#         data = load(start_file, "data")
-#         main(; run_name, save_data=true, data, run_idx)
-#     end
+    metric_data = load(metric_file)
+    score_ = metric_data["score"]
+    metric_cb_ = metric_data["metric"]
 
-#     nothing
-# end
+    @assert typeof(metric_cb_.metric) == typeof(metric)
+    return metric_cb_
+end

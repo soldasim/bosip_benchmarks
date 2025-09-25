@@ -12,6 +12,7 @@ using Bijectors
 using JLD2
 using Glob
 using CairoMakie
+using ProgressMeter
 
 using Random
 Random.seed!(555)
@@ -30,9 +31,32 @@ include(pwd() * "/src/include_code.jl")
 # LogSimpleProblem
 # LogSIRProblem
 
+### START A NEW RUN ###
 function main(problem::AbstractProblem; data=nothing, kwargs...)
     ### SETTINGS ###
     init_data_count = 3
+
+    ### INIT DATA ###
+    if isnothing(data)
+        data = get_init_data(problem, init_data_count)
+    else
+        @assert data isa AbstractMatrix{<:Real}
+        sim = simulator(problem)
+        X = data
+        Y = reduce(hcat, (sim(x) for x in eachcol(X)))[:,:]
+        data = BOSS.ExperimentData(X, Y)
+    end
+
+    # ### domain mean as only initial point
+    # X = hcat(mean(domain(problem).bounds))
+    # sim = simulator(problem)
+    # Y = reduce(hcat, (sim(x) for x in eachcol(X)))[:,:]
+    # data = ExperimentData(X, Y)
+
+    @info "Initial data:"
+    for (x, y) in zip(eachcol(data.X), eachcol(data.Y))
+        println("  $x -> $y")
+    end
 
     
     ### SURROGATE MODEL ###
@@ -73,23 +97,6 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     # )
 
     
-    ### INIT DATA ###
-    if isnothing(data)
-        data = get_init_data(problem, init_data_count)
-    else
-        @assert data isa AbstractMatrix{<:Real}
-        sim = simulator(problem)
-        X = data
-        Y = reduce(hcat, (sim(x) for x in eachcol(X)))[:,:]
-        data = BOSS.ExperimentData(X, Y)
-    end
-
-    @info "Initial data:"
-    for (x, y) in zip(eachcol(data.X), eachcol(data.Y))
-        println("  $x -> $y")
-    end
-
-    
     ### BOSIP PROBLEM ###
     bosip = construct_bosip_problem(;
         problem,
@@ -101,10 +108,40 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     return main(problem, bosip; kwargs...)
 end
 
-# for continuing an experiment (mainly for debugging)
-function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", save_data=false, metric=false, plots=false, run_idx=nothing)
-    bounds = bosip.problem.domain.bounds
+### CONTINUE A RUN ###
+function main_continue(problem::AbstractProblem, run_name::String, run_idx::Union{Nothing, Int}; kwargs...)
+    # # check the filename just to be sure
+    # fname = basename(@__FILE__)
+    # fname_split = split(fname, ['.', '_'])
+    # @assert length(fname_split) == 3
+    # @assert fname_split[2] == run_name
 
+    # load the saved BOSIP problem
+    if isnothing(run_idx)
+        file = joinpath(data_dir(problem), "$(run_name)_problem.jld2")
+    else
+        file = joinpath(data_dir(problem), "$(run_name)_$(run_idx)_problem.jld2")
+    end
+    bosip = load(file)["problem"]
+    @assert bosip isa BosipProblem
+
+    # assert iters
+    data_count = size(bosip.problem.data.X, 2)
+    @assert data_count == 3 + 100 # TODO
+
+    # continue
+    return main(problem, bosip; continued=true, run_name, run_idx, kwargs...)
+end
+
+function main(problem::AbstractProblem, bosip::BosipProblem;
+    run_name = "test",
+    save_data = false,
+    metric = false,
+    plots = false,
+    run_idx = nothing,
+    continued = false,
+)
+    bounds = bosip.problem.domain.bounds
 
     ### ALGORITHMS ###
     model_fitter = OptimizationMAP(;
@@ -161,25 +198,40 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
     xs = rand(bosip.x_prior, 20 * 10^x_dim(problem))
     ws = exp.( (0.) .- logpdf.(Ref(bosip.x_prior), eachcol(xs)) )
 
-    metric_cb = MetricCallback(;
-        reference = reference(problem),
-        logpost_estimator = log_posterior_estimate(problem),
-        sampler,
-        sample_count = 2 * 10^x_dim(problem),
-        # metric = MMDMetric(;
-        #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
-        # ),
-        # metric = OptMMDMetric(;
-        #     kernel = GaussianKernel(),
-        #     bounds,
-        #     algorithm = BOBYQA(),
-        #     rhoend = 1e-4,
-        # ),
-        metric = TVMetric(;
-            grid = xs,
-            ws = ws,
-        ),
+    # metric_ = MMDMetric(;
+    #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
+    # )
+    # metric_ = OptMMDMetric(;
+    #     kernel = GaussianKernel(),
+    #     bounds,
+    #     algorithm = BOBYQA(),
+    #     rhoend = 1e-4,
+    # )
+    metric_ = TVMetric(;
+        grid = xs,
+        ws = ws,
     )
+
+    # Get a reference appropriate for the used metric is available.
+    if metric_ isa PDFMetric
+        ref = true_logpost(problem)
+    else
+        ref = reference_samples(problem)
+        isnothing(ref) && (ref = true_logpost(problem))
+    end
+    @assert !isnothing(ref)
+
+    if continued
+        metric_cb = reload_metric_cb(metric_, problem, run_name, run_idx)
+    else
+        metric_cb = MetricCallback(;
+            reference = ref,
+            logpost_estimator = log_posterior_estimate(problem),
+            sampler,
+            sample_count = 2 * 10^x_dim(problem),
+            metric = metric_,
+        )
+    end
     # first callback in `callbacks` (this is important for `SaveCallback`)
     callbacks = BosipCallback[]
     metric && push!(callbacks, metric_cb)
@@ -190,7 +242,8 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
         problem,
         sampler,
         sample_count = 2 * 10^x_dim(problem),
-        plot_each = 10,
+        resolution = 200,
+        plot_each = 10, # TODO
         save_plots = true,
     )
     plots && push!(callbacks, plot_cb)
@@ -200,6 +253,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
     data_cb = SaveCallback(;
         dir = data_dir(problem),
         filename = base_filename(problem, run_name, run_idx),
+        continued,
     )
     save_data && push!(callbacks, data_cb)
 
@@ -213,18 +267,19 @@ function main(problem::AbstractProblem, bosip::BosipProblem; run_name="_test", s
     return bosip
 end
 
-function run(problem::AbstractProblem)
-    run_name = "loglike" # the name used for storing data from this run
-
-    start_files = Glob.glob(starts_dir(problem) * "/start_*.jld2")
-    @info "Running $(length(start_files)) runs of the $(typeof(problem)) ..."
-    
-    for start_file in start_files
-        m = match(r"start_(\d+)\.jld2$", start_file)
-        run_idx = parse(Int, m.captures[1])
-        data = load(start_file, "data")
-        main(; run_name, save_data=true, data, run_idx)
+### for continuing runs ###
+function reload_metric_cb(metric::DistributionMetric, problem::AbstractProblem, run_name::String, run_idx::Union{Nothing, Int})
+    dir = data_dir(problem)
+    if isnothing(run_idx)
+        metric_file = dir * "/$(run_name)_$(metric_fname(Base.typename(typeof(metric)).wrapper)).jld2"
+    else
+        metric_file = dir * "/$(run_name)_$(run_idx)_$(metric_fname(Base.typename(typeof(metric)).wrapper)).jld2"
     end
+    
+    metric_data = load(metric_file)
+    score_ = metric_data["score"]
+    metric_cb_ = metric_data["metric"]
 
-    nothing
+    @assert typeof(metric_cb_.metric) == typeof(metric)
+    return metric_cb_
 end

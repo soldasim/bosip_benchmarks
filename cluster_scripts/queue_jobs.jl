@@ -2,7 +2,10 @@
 
 include("../src/main.jl")
 
-function queue_jobs(problem::AbstractProblem, run_name::String; selected_runs=nothing)
+function queue_jobs(problem::AbstractProblem, run_name::String;
+    selected_runs = nothing,
+    continued = false,
+)
     problem_name = string(typeof(problem))
 
     start_files = Glob.glob(starts_dir(problem) * "/start_*.jld2")
@@ -22,7 +25,9 @@ function queue_jobs(problem::AbstractProblem, run_name::String; selected_runs=no
         @info "Queuing run: problem:\"$(problem_name)\", run_name:\"$(run_name)\", run_idx:\"$(run_idx)\""
         # TODO --mem (the code was failing with the `SimpleProblem` with the default 4G memory)
         job_name = "$(problem_name)_$(run_name)_$(run_idx)"
-        Base.run(`sbatch -p cpulong --mem=16G --job-name=$job_name cluster_scripts/run.sh $problem_name $run_name $run_idx`)
+        job_name = continued ? job_name * "_cont" : job_name
+        cont = continued ? 1 : 0
+        Base.run(`sbatch -p cpulong --mem=16G --job-name=$job_name cluster_scripts/run.sh $problem_name $run_name $run_idx $cont`)
     end
 
     nothing
