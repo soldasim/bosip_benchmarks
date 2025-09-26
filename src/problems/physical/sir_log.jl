@@ -1,5 +1,5 @@
 """
-    SIRProblem()
+    LogSIRProblem()
 
 The SIR (Susceptible-Infected-Recovered) epidemic model for simulation-based inference.
 
@@ -20,15 +20,15 @@ The parameters to infer are [β, γ] where:
 - β: contact rate (how fast the disease spreads)
 - γ: recovery rate (how fast infected individuals recover)
 
-The observations are binomial samples with probability p = I(t)/N at multiple time points,
-subsampled every 17 days. The model predicts the probability p, and observations are 
-sampled from Binomial(trials=1000, p) at each time point.
+This is the log-likelihood version of the SIR problem. Instead of returning simulator outputs,
+the model returns the log-likelihood of the binomial observations given the SIR predictions.
+The observations are binomial samples with probability p = I(t)/N at multiple time points.
 """
-struct SIRProblem <: AbstractProblem end
+struct LogSIRProblem <: AbstractProblem end
 
-module SIRModule
+module LogSIRModule
 
-import ..SIRProblem
+import ..LogSIRProblem
 
 import ..simulator
 import ..domain
@@ -49,28 +49,26 @@ using DifferentialEquations
 
 # --- API ---
 
-simulator(::SIRProblem) = model_target
+simulator(::LogSIRProblem) = model_target
 
-domain(::SIRProblem) = Domain(;
+domain(::LogSIRProblem) = Domain(;
     bounds = _get_bounds(),
 )
 
-likelihood(::SIRProblem) = BinomialLikelihood(;
-    z_obs = Int64.(z_obs),
-    trials,
-    int_grid_size = 200,
-)
+# TODO loglike
+# likelihood(::LogSIRProblem) = BinomialLikelihood(; z_obs = Int64.(z_obs), trials, int_grid_size = 200)
+likelihood(::LogSIRProblem) = ExpLikelihood()
 
-prior_mean(::SIRProblem) = _get_prior_mean()
+prior_mean(::LogSIRProblem) = _get_prior_mean()
 
-x_prior(::SIRProblem) = _get_trunc_x_prior()
+x_prior(::LogSIRProblem) = _get_trunc_x_prior()
 
-est_amplitude(::SIRProblem) = _get_est_amplitude()
+est_amplitude(::LogSIRProblem) = _get_est_amplitude()
 
 # TODO noise
-est_noise_std(::SIRProblem) = nothing
+est_noise_std(::LogSIRProblem) = nothing
 
-true_f(::SIRProblem) = model_target
+true_f(::LogSIRProblem) = model_target
 
 
 # --- UTILS ---
@@ -118,11 +116,27 @@ end
 """
     model_target(x)
 
-The SIR problem simulator together with the mapping to the model target variable.
-Returns probabilities p = I/N at subsampled time points.
+The SIR problem simulator together with the mapping to the log-likelihood target variable.
+Returns the log-likelihood of the binomial observations given the SIR predictions.
 """
+# TODO loglike
+# function model_target(x)
+#     return sir_simulation(x)
+# end
 function model_target(x)
-    return sir_simulation(x)
+    # Get probabilities from SIR simulation
+    p_pred = sir_simulation(x)
+    
+    # Compute binomial log-likelihood for each observation
+    loglike = 0.0
+    for i in 1:n_obs
+        # Clamp probability to avoid numerical issues
+        p_clamped = clamp(p_pred[i], 0., 1.)
+        # Add log-likelihood of Binomial(trials[i], p_clamped) at z_obs[i]
+        loglike += logpdf(Binomial(trials[i], p_clamped), z_obs[i])
+    end
+    
+    return [loglike]
 end
 
 """
@@ -186,13 +200,17 @@ _get_bounds() = ([0.0, 0.0], [2.0, 0.5])
 """
 Prior mean based on binomial probabilities.
 """
-_get_prior_mean() = z_obs ./ trials
+# TODO loglike
+# _get_prior_mean() = z_obs ./ trials
+_get_prior_mean() = [0.]
 
 """
 Estimated amplitude for each observation dimension.
 For binomial likelihood, this represents the scale of probability values.
 """
-_get_est_amplitude() = fill(1.0, n_obs)
+# TODO loglike
+# _get_est_amplitude() = fill(1.0, n_obs)
+_get_est_amplitude() = [1000.] # TODO ???
 
 """
 Truncated prior distribution for parameters.
@@ -215,4 +233,4 @@ function _get_x_prior()
     ])
 end
 
-end # module SIRModule
+end # module LogSIRModule
