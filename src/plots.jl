@@ -17,11 +17,16 @@ end
 
 ### Create a grid of plots for the individual problems
 ### (Edit plotted runs in `plotted groups`.)
+#
+# ## Important Keywords
+# - xscale
+# - yscale
+# - max_iters
 function plot_results(; save_plot=false, kwargs...)
     # TODO
     problems = [
         ABProblem()             SimpleProblem()         BananaProblem()         BimodalProblem()
-        :legend                 "SIR placeholder"       "Duffing placeholder"   "Diffusion placeholder"
+        :legend                 SIRProblem()            DuffingProblem()        "DiffusionProblem()"
     ]
 
     nrows, ncols = size(problems)
@@ -54,7 +59,7 @@ end
 
 ### Create a single plot with the runs of the given problems
 ### (Edit plotted runs in `plotted groups`.)
-plot_results(problem::AbstractProblem; kwargs...) = plot_results([problem]; kwargs...)
+plot_results(problem::AbstractProblem; kwargs...) = plot_results(AbstractProblem[problem]; kwargs...)
 function plot_results(problems::AbstractVector; save_plot=false, kwargs...)
     fig = Figure()
     
@@ -83,6 +88,7 @@ function plot_result_axis!(figpos::GridPosition, problems::AbstractVector{<:Abst
     xscale = log10,
     yscale = log,
     legend = true,
+    max_iters = typemax(Int),
 )
     ################
     ### SETTINGS ###
@@ -92,8 +98,16 @@ function plot_result_axis!(figpos::GridPosition, problems::AbstractVector{<:Abst
     # metric = OptMMDMetric
     metric = TVMetric
 
+    # a list of all groups is needed to keep plot colors consistent
+    colors = Makie.wong_colors()
+    all_groups = ["loglike-imiqr", "loglike", "standard", "eiv", "eiig", "nongp"]
+    color_map = Dict(group => colors[i] for (i, group) in enumerate(all_groups))
+    
     # TODO groups
     plotted_groups = ["loglike-imiqr", "loglike", "standard", "eiv", "eiig", "nongp"]
+    # plotted_groups = ["loglike-imiqr", "loglike", "standard"]
+    # plotted_groups = ["standard", "eiv", "eiig"]
+    # plotted_groups = ["standard", "nongp"]
 
     # include log versions of the problems as well
     add_log_versions!(problems)
@@ -107,27 +121,26 @@ function plot_result_axis!(figpos::GridPosition, problems::AbstractVector{<:Abst
 
     ax = Axis(figpos; xlabel="Iteration", ylabel, title, xscale, yscale)
 
-    colors = Makie.wong_colors()  # or use any preferred color palette
-    group_names = collect(keys(scores_by_group))
-    color_map = Dict(group => colors[i] for (i, group) in enumerate(group_names))
-
     for group in plotted_groups
+        haskey(scores_by_group, group) || continue
         scores = scores_by_group[group]
 
         color = color_map[group]
         # scores is a Vector of score histories (each is a Vector)
         # Pad with `missing` to equal length if needed
         maxlen = maximum(length.(scores))
-        if !allequal(length.(scores))
-            maxlen = maximum(length.(scores))
-            successful = sum(length.(scores) .== maxlen)
-            failed = findall(length.(scores) .!= maxlen)
-            @warn "Scores for group \"$group\" have different lengths! Padding with `missing`.
-            ($successful/$(length(scores)) runs have the max length of $maxlen,
-            runs $failed did not finish)"
-        end
-        padded = [vcat(s, fill(missing, maxlen - length(s))) for s in scores]
+        maxlen = min(maxlen, max_iters)
+        padded = pad_with_missing.(scores, Ref(maxlen))
         arr = reduce(hcat, padded)
+
+        if !allequal(length.(scores))
+            max_run_len = maximum(length.(scores))
+            successful = sum(length.(scores) .== max_run_len)
+            failed = findall(length.(scores) .!= max_run_len)
+            @warn "Scores for group \"$group\" have different lengths! Padding with `missing`.
+            ($successful/$(length(scores)) runs have the max length of $max_run_len,
+            runs $failed have shorter lengths.)"
+        end
 
         # avoid zero if xscale if logarithmic
         if xscale(0) |> isinf
@@ -211,19 +224,25 @@ function load_stored_scores!(problem::AbstractProblem, metricT::Type{<:Distribut
     scores_by_group = Dict{String, Vector{Vector{Float64}}}()
 
     for file in files
-        fname = split(basename(file), ".")[1]
+        fname, suffixes... = split(basename(file), ".")
         group = split(fname, "_")[1]
         
-        # startswith(fname, "start") && continue  # skip start files
-        endswith(fname, metric_fname(metricT)) || continue     # only consider the metric files
+        (length(suffixes) == 1) || continue                 # ignore backup data (which have an extra suffix)
+        endswith(fname, metric_fname(metricT)) || continue  # only consider the metric files
 
-        data = load(file)
-        @assert haskey(data, "score")
         if !haskey(scores_by_group, group)
             scores_by_group[group] = Vector{Vector{Float64}}()
         end
-        push!(scores_by_group[group], data["score"])
+        push!(scores_by_group[group], load(file, "score"))
     end
 
     return scores_by_group
+end
+
+function pad_with_missing(v::AbstractVector, len::Int)
+    if length(v) < len
+        return vcat(v, fill(missing, len - length(v)))
+    else
+        return v[1:len]
+    end
 end
