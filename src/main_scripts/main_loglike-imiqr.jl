@@ -105,7 +105,9 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
         model,
     )
 
-    return main(problem, bosip; kwargs...)
+    data_max = size(data.X, 2) + 100 # TODO
+
+    return main(problem, bosip; data_max, kwargs...)
 end
 
 ### CONTINUE A RUN ###
@@ -127,10 +129,11 @@ function main_continue(problem::AbstractProblem, run_name::String, run_idx::Unio
 
     # assert iters
     data_count = size(bosip.problem.data.X, 2)
-    @assert data_count == 3 + 100 # TODO
+    @assert data_count >= 3 + 100 # TODO
+    data_max = 3 + 200 # TODO
 
     # continue
-    return main(problem, bosip; continued=true, run_name, run_idx, kwargs...)
+    return main(problem, bosip; continued=true, run_name, run_idx, data_max, kwargs...)
 end
 
 function main(problem::AbstractProblem, bosip::BosipProblem;
@@ -140,6 +143,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     plots = false,
     run_idx = nothing,
     continued = false,
+    data_max = 1,
 )
     bounds = bosip.problem.domain.bounds
 
@@ -159,7 +163,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
 
     
     ### TERMINATION CONDITION ###
-    term_cond = IterLimit(100) # TODO
+    term_cond = DataLimit(data_max)
 
 
     ### SAMPLER ###

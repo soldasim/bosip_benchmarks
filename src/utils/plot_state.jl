@@ -9,20 +9,21 @@ import ..log_posterior_estimate
 
 include("../data_paths.jl")
 
-@kwdef struct PlotCB <: BosipCallback
+@kwdef mutable struct PlotCB <: BosipCallback
     problem::AbstractProblem
     sampler::DistributionSampler
     sample_count::Int
     plot_each::Int = 10
     resolution::Int = 500
     save_plots::Bool = false
+    iters::Int = 0
 end
 
 function (cb::PlotCB)(bosip::BosipProblem; term_cond, first, kwargs...)
-    # first && return
-    (term_cond.iter % cb.plot_each == 0) || return
+    first || (cb.iters += 1)
+    (cb.iters % cb.plot_each == 0) || return
 
-    plot_state(bosip, cb.problem, cb.sampler, cb.sample_count, term_cond.iter; cb.resolution, cb.save_plots)
+    plot_state(bosip, cb.problem, cb.sampler, cb.sample_count, cb.iters; cb.resolution, cb.save_plots)
 end
 
 function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::DistributionSampler, sample_count::Int, iter::Int; resolution=500, save_plots=false)
