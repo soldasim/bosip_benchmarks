@@ -131,7 +131,8 @@ function model_target(x)
     loglike = 0.0
     for i in 1:n_obs
         # Clamp probability to avoid numerical issues
-        p_clamped = clamp(p_pred[i], 0., 1.)
+        ε = 1e-8
+        p_clamped = clamp(p_pred[i], 0. + ε, 1. - ε)
         # Add log-likelihood of Binomial(trials[i], p_clamped) at z_obs[i]
         loglike += logpdf(Binomial(trials[i], p_clamped), z_obs[i])
     end
