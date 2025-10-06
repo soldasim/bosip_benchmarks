@@ -31,7 +31,7 @@ include(pwd() * "/src/include_code.jl")
 ### START A NEW RUN ###
 function main(problem::AbstractProblem; data=nothing, kwargs...)
     ### SETTINGS ###
-    init_data_count = 3
+    init_data_count = 3 # TODO
 
     ### INIT DATA ###
     if isnothing(data)
@@ -102,7 +102,8 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
         model,
     )
 
-    data_max = size(data.X, 2) + 10 # TODO
+    iters = 100 # TODO
+    data_max = size(data.X, 2) + iters
 
     return main(problem, bosip; data_max, kwargs...)
 end
@@ -211,6 +212,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     metric_ = TVMetric(;
         grid = xs,
         ws = ws,
+        true_logpost = true_logpost(problem),
     )
 
     # Get a reference appropriate for the used metric is available.
@@ -265,6 +267,9 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     
     ### RUN ###
     bosip!(bosip; model_fitter, acq_maximizer, term_cond, options)
+    
+    # TODO
+    # return bosip, metric_cb.score_history
     return bosip
 end
 
