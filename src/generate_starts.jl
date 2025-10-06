@@ -13,6 +13,7 @@ function generate_starts(problem::AbstractProblem, n_runs::Int)
         
         # only save the X matrix
         X = data.X
+        @show X
         @save file X=X
     end
 

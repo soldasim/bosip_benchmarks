@@ -1,7 +1,10 @@
 
 # Data are stored in: "data/{problem}/{run name}_{run index}_{some suffix}.jld2"
 
-data_dir(problem::AbstractProblem) = "data/" * string(typeof(problem))
+# default problem name
+get_name(problem::AbstractProblem) = problem |> typeof |> string
+
+data_dir(problem::AbstractProblem) = "data/" * get_name(problem)
 
 data_base_filepath(problem::AbstractProblem, run_name::String, run_idx) = data_dir(problem) * "/" * base_filename(problem, run_name, run_idx)
 

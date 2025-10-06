@@ -1,5 +1,5 @@
 """
-    DiffusionProblem()
+    DiffusionProblem(; kwargs...)
 
 The advection-diffusion equation problem for simulation-based inference.
 
@@ -29,8 +29,37 @@ The source starts radiating at unknown time t_s at unknown location (x_s, y_s) w
 where t_s ∈ [-10.0, -0.5], x_s ∈ [-5.0, 5.0], y_s ∈ [-5.0, 5.0].
 
 The observations are integrated concentration measurements at 3 locations arranged in a triangle over configurable time intervals during the full simulation time (-10, 0). Reference data uses 10-second intervals (entire simulation), while model outputs use 2-second intervals by default.
+
+## Keywords
+- `model_interval::Float64=10.0`: The length of the modeled intervals.
 """
-struct DiffusionProblem <: AbstractProblem end
+@kwdef struct DiffusionProblem <: AbstractProblem
+    model_interval::Float64 = 10.0
+end
+
+# custom problem name for different variants
+function get_name(p::DiffusionProblem)
+    problem_name = string(typeof(p))
+    x = p.model_interval
+    if x >= 1
+        @assert isinteger(x)
+        problem_name *= string(Int(x))
+    else
+        @assert x > 0
+        problem_name *= replace(string(x), "." => "")
+    end
+    return problem_name
+end
+
+# aliases for named variants
+DiffusionProblem10() = DiffusionProblem(model_interval=10.0)
+DiffusionProblem2() = DiffusionProblem(model_interval=2.0)
+
+# check correct aliasing
+check_alias.((
+    DiffusionProblem10,
+    DiffusionProblem2,
+))
 
 module DiffusionModule
 
@@ -55,24 +84,24 @@ using DifferentialEquations
 
 # --- API ---
 
-simulator(::DiffusionProblem) = model_target
+simulator(p::DiffusionProblem) = _get_model_target(p)
 
 domain(::DiffusionProblem) = Domain(;
     bounds = _get_bounds(),
 )
 
-likelihood(::DiffusionProblem) = _get_likelihood()
+likelihood(p::DiffusionProblem) = _get_likelihood(p)
 
-prior_mean(::DiffusionProblem) = _get_prior_mean()
+prior_mean(p::DiffusionProblem) = _get_prior_mean(p)
 
 x_prior(::DiffusionProblem) = _get_trunc_x_prior()
 
-est_amplitude(::DiffusionProblem) = _get_est_amplitude()
+est_amplitude(p::DiffusionProblem) = _get_est_amplitude(p)
 
 # TODO noise
 est_noise_std(::DiffusionProblem) = nothing
 
-true_f(::DiffusionProblem) = model_target
+true_f(p::DiffusionProblem) = _get_model_target(p)
 
 
 # --- UTILS ---
@@ -92,14 +121,15 @@ const t_span = (-10, 0.0)  # simulation time span
 
 # Measurement intervals
 const observation_interval = 10.0   # interval length for reference data (entire simulation)
-const model_interval = 10.0         # interval length for model outputs
+### MOVED TO THE PROBLEM STRUCTURE ###
+# const model_interval = 10.0         # interval length for model outputs
 
 # Simulation fidelity
 const sim_step = 0.1
 
 # The `Likelihood` describes how the model output is mapped to observation likelihood values
-function _get_likelihood()
-    ratio = Int(observation_interval / model_interval)
+function _get_likelihood(p::DiffusionProblem)
+    ratio = Int(observation_interval / p.model_interval)
     if ratio == 1
         return LogNormalLikelihood(;
             log_z_obs = log.(z_obs),
@@ -138,7 +168,7 @@ const v_y_field = [-v_max * cos(wind_scale * y_grid[j] / 5.0) * sin(wind_scale *
 const obs_points = [(-2.0, -2.0), (2.0, -2.0), (0.0, 1.4)]  # equilateral triangle observation points
 const n_obs_locs = length(obs_points)  # total observations for reference data (3 points × 1 interval = 3)
 const n_obs_times = Int((t_span[2] - t_span[1]) / observation_interval)  # number of observation intervals
-const n_modeled_times = Int((t_span[2] - t_span[1]) / model_interval)  # number of 2-second intervals (5)
+n_modeled_times(p) = Int((t_span[2] - t_span[1]) / p.model_interval)  # number of 2-second intervals (5)
 
 # Assert that observation points are exactly at grid points
 for (x_loc, y_loc) in obs_points
@@ -259,16 +289,12 @@ function diffusion_pde!(du, u, p, t)
     end
 end
 
-"""
-    model_target(x)
-
-The diffusion problem simulator together with the mapping to the model target variable.
-Passes keyword arguments through to extract_measurements.
-"""
-function model_target(x)
-    sol = diffusion_simulation(x)
-    observations = extract_measurements(sol; interval_length=model_interval)
-    return log.(observations)
+function _get_model_target(p::DiffusionProblem)
+    function model_target(x)
+        sol = diffusion_simulation(x)
+        observations = extract_measurements(sol; interval_length=p.model_interval)
+        return log.(observations)
+    end
 end
 
 """
@@ -380,8 +406,8 @@ _get_bounds() = ([-5.0, -5.0, -10.0], [5.0, 5.0, -0.5])
 """
 Prior mean based on typical parameter values.
 """
-function _get_prior_mean()
-    ratio = Int(observation_interval / model_interval)
+function _get_prior_mean(p::DiffusionProblem)
+    ratio = Int(observation_interval / p.model_interval)
     μ = similar(z_obs, length(z_obs) * ratio)
     for i in eachindex(z_obs)
         idx = range((i-1)*ratio + 1, i*ratio)
@@ -393,8 +419,8 @@ end
 """
 Estimated amplitude for each observation dimension.
 """
-const α_est = log((A_source * model_interval) / (observation_interval / model_interval))
-_get_est_amplitude() = fill(α_est, n_obs_locs * n_modeled_times)
+α_est(p) = log((A_source * p.model_interval) / (observation_interval / p.model_interval))
+_get_est_amplitude(p::DiffusionProblem) = fill(α_est(p), n_obs_locs * n_modeled_times(p))
 
 """
 Truncated prior distribution for parameters.
