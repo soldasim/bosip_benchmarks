@@ -3,6 +3,7 @@ include("utils.jl")
 # analytical
 include("ab.jl")
 include("ab_log.jl")
+include("ab_abs.jl")
 
 # SBIBM
 ### SIR reimplemented in the "physical" problems section
