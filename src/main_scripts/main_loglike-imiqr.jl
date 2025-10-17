@@ -264,7 +264,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     save_data && push!(callbacks, data_cb)
 
     options = BosipOptions(;
-        callback = CombinedCallback(callbacks...),
+        callback = BOSIP.CombinedCallback(callbacks...),
     )
 
     

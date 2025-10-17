@@ -147,7 +147,7 @@ function true_loglike(problem::AbstractProblem)
 
     function true_like(x)
         y = f(x)
-        ll = loglike(like, y)
+        ll = loglike(like, y, x)
         return ll
     end
 end
@@ -169,7 +169,7 @@ function true_logpost(problem::AbstractProblem)
 
     function true_post(x::AbstractVector{<:Real})
         y = f(x)
-        ll = loglike(like, y)
+        ll = loglike(like, y, x)
         lp = logpdf(prior, x)
         return ll + lp
     end

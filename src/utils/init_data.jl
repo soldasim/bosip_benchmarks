@@ -10,7 +10,13 @@ function get_init_data(problem::AbstractProblem, count::Int)
     @show domain(problem).bounds
     sim = simulator(problem)
 
-    X = rand(prior, count)
-    Y = reduce(hcat, (sim(x) for x in eachcol(X)))[:,:]
-    return BOSS.ExperimentData(X, Y)
+    if count == 1
+        x = mean(domain(problem).bounds)
+        y = sim(x)
+        return BOSS.ExperimentData(hcat(x), hcat(y))
+    else
+        X = rand(prior, count)
+        Y = reduce(hcat, (sim(x) for x in eachcol(X)))[:,:]
+        return BOSS.ExperimentData(X, Y)
+    end
 end

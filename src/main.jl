@@ -18,16 +18,6 @@ parallel() = false # PRIMA.jl causes StackOverflow when parallelized on Linux
 
 include(pwd() * "/src/include_code.jl")
 
-### PROBLEMS ###
-#
-# ABProblem
-# SimpleProblem
-# SIRProblem
-#
-# LogABProblem
-# LogSimpleProblem
-# LogSIRProblem
-
 ### START A NEW RUN ###
 function main(problem::AbstractProblem; data=nothing, kwargs...)
     ### SETTINGS ###
@@ -200,41 +190,46 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     xs = rand(bosip.x_prior, 20 * 10^x_dim(problem))
     ws = exp.( (0.) .- logpdf.(Ref(bosip.x_prior), eachcol(xs)) )
 
-    # metric_ = MMDMetric(;
-    #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
-    # )
-    # metric_ = OptMMDMetric(;
-    #     kernel = GaussianKernel(),
-    #     bounds,
-    #     algorithm = BOBYQA(),
-    #     rhoend = 1e-4,
-    # )
-    metric_ = TVMetric(;
-        grid = xs,
-        ws = ws,
-        true_logpost = true_logpost(problem),
-    )
-
-    # Get a reference appropriate for the used metric is available.
-    if metric_ isa PDFMetric
-        ref = true_logpost(problem)
-    else
-        ref = reference_samples(problem)
-        isnothing(ref) && (ref = true_logpost(problem))
-    end
-    @assert !isnothing(ref)
-
-    if continued
-        metric_cb = reload_metric_cb(metric_, problem, run_name, run_idx)
-    else
-        metric_cb = MetricCallback(;
-            reference = ref,
-            logpost_estimator = log_posterior_estimate(problem),
-            sampler,
-            sample_count = 2 * 10^x_dim(problem),
-            metric = metric_,
+    # The initialization of the metric may take some time.
+    # (in case the reference is being pre-calculated)
+    if metric
+        # metric_ = MMDMetric(;
+        #     kernel = with_lengthscale(GaussianKernel(), (bounds[2] .- bounds[1]) ./ 3),
+        # )
+        # metric_ = OptMMDMetric(;
+        #     kernel = GaussianKernel(),
+        #     bounds,
+        #     algorithm = BOBYQA(),
+        #     rhoend = 1e-4,
+        # )
+        metric_ = TVMetric(;
+            grid = xs,
+            ws = ws,
+            true_logpost = true_logpost(problem),
         )
+
+        # Get a reference appropriate for the used metric is available.
+        if metric_ isa PDFMetric
+            ref = true_logpost(problem)
+        else
+            ref = reference_samples(problem)
+            isnothing(ref) && (ref = true_logpost(problem))
+        end
+        @assert !isnothing(ref)
+
+        if continued
+            metric_cb = reload_metric_cb(metric_, problem, run_name, run_idx)
+        else
+            metric_cb = MetricCallback(;
+                reference = ref,
+                logpost_estimator = log_posterior_estimate(problem),
+                sampler,
+                sample_count = 2 * 10^x_dim(problem),
+                metric = metric_,
+            )
+        end
     end
+
     # first callback in `callbacks` (this is important for `SaveCallback`)
     callbacks = BosipCallback[]
     metric && push!(callbacks, metric_cb)
@@ -261,7 +256,9 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     save_data && push!(callbacks, data_cb)
 
     options = BosipOptions(;
-        callback = CombinedCallback(callbacks...),
+        callback = BOSIP.CombinedCallback(callbacks...),
+        info = true,
+        debug = false,
     )
 
     
