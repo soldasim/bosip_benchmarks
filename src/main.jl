@@ -45,7 +45,12 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
         println("  $x -> $y")
     end
 
-    
+
+    ### POSTERIOR ESTIMATOR ###
+    estimator = log_posterior_mean
+    # estimator = log_approx_posterior
+
+
     ### SURROGATE MODEL ###
     model = GaussianProcess(;
         mean = prior_mean(problem),
@@ -95,7 +100,7 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     iters = 100 # TODO
     data_max = size(data.X, 2) + iters
 
-    return main(problem, bosip; data_max, kwargs...)
+    return main(problem, bosip, estimator; data_max, kwargs...)
 end
 
 ### CONTINUE A RUN ###
@@ -115,16 +120,21 @@ function main_continue(problem::AbstractProblem, run_name::String, run_idx::Unio
     bosip = load(file)["problem"]
     @assert bosip isa BosipProblem
 
+    # estimator
+    estimator = log_posterior_mean
+    # estimator = log_approx_posterior
+    @warn "using posterior estimator: $(estimator |> nameof |> string)"
+
     # assert iters
     data_count = size(bosip.problem.data.X, 2)
     # @assert data_count >= 3 + 100 # TODO
     data_max = 3 + 10 # TODO
 
     # continue
-    return main(problem, bosip; continued=true, run_name, run_idx, data_max, kwargs...)
+    return main(problem, bosip, estimator; continued=true, run_name, run_idx, data_max, kwargs...)
 end
 
-function main(problem::AbstractProblem, bosip::BosipProblem;
+function main(problem::AbstractProblem, bosip::BosipProblem, estimator::Function;
     run_name = "test",
     save_data = false,
     metric = false,
@@ -222,7 +232,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
         else
             metric_cb = MetricCallback(;
                 reference = ref,
-                logpost_estimator = log_posterior_estimate(problem),
+                logpost_estimator = estimator,
                 sampler,
                 sample_count = 2 * 10^x_dim(problem),
                 metric = metric_,
@@ -238,6 +248,7 @@ function main(problem::AbstractProblem, bosip::BosipProblem;
     ### PLOTS ###
     plot_cb = PlotModule.PlotCB(;
         problem,
+        estimator,
         sampler,
         sample_count = 2 * 10^x_dim(problem),
         resolution = 200,

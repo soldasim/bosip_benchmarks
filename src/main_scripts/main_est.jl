@@ -1,5 +1,4 @@
-### The setup for using the EIV acquisition.
-# `EIV` instead of `MaxVar`
+### The setup for using the `log_approx_posterior` estimator instead of the `log_posterior_mean`.
 
 using BOSS
 using BOSIP
@@ -50,8 +49,8 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
 
 
     ### POSTERIOR ESTIMATOR ###
-    estimator = log_posterior_mean
-    # estimator = log_approx_posterior
+    # estimator = log_posterior_mean
+    estimator = log_approx_posterior
 
 
     ### SURROGATE MODEL ###
@@ -72,7 +71,7 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     
     ### ACQUISITION ###
     # acquisition = MaxVar()
-    # acquisition = LogMaxVar()
+    acquisition = LogMaxVar()
     # acquisition = IMMD(;
     #     y_samples = 20,
     #     x_samples = 2 * 10^x_dim(problem),
@@ -80,11 +79,11 @@ function main(problem::AbstractProblem; data=nothing, kwargs...)
     #     y_kernel = BOSS.GaussianKernel(),
     #     p_kernel = BOSS.GaussianKernel(),
     # )
-    acquisition = EIV(
-        y_samples = 20,
-        x_samples = 2 * 10^x_dim(problem),
-        x_proposal = x_prior(problem),
-    )
+    # acquisition = EIV(
+    #     y_samples = 20,
+    #     x_samples = 2 * 10^x_dim(problem),
+    #     x_proposal = x_prior(problem),
+    # )
     # acquisition = IMIQR(;
     #     p_u = 0.75,
     #     x_samples = 2 * 10^x_dim(problem),
@@ -124,8 +123,8 @@ function main_continue(problem::AbstractProblem, run_name::String, run_idx::Unio
     @assert bosip isa BosipProblem
 
     # estimator
-    estimator = log_posterior_mean
-    # estimator = log_approx_posterior
+    # estimator = log_posterior_mean
+    estimator = log_approx_posterior
     @warn "using posterior estimator: $(estimator |> nameof |> string)"
 
     # assert iters

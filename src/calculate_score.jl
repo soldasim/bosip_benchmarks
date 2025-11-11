@@ -2,6 +2,7 @@ include("main.jl")
 
 function calculate_scores(
     problem::AbstractProblem,
+    estimator::Function,
     metricT::Type{<:DistributionMetric},
     run_name::String,
     run_idx::Int;
@@ -38,7 +39,7 @@ function calculate_scores(
     # enclose everything in a MetricCallback (to save it compactly later)
     cb = MetricCallback(;
         reference = reference(problem),
-        logpost_estimator = log_posterior_estimate(problem),
+        logpost_estimator = estimator,
         sampler,
         sample_count,
         metric,
@@ -65,11 +66,6 @@ function calculate_scores(
     return scores
 end
 
-function calculate_score(metric::DistributionMetric, problem::AbstractProblem, sampler::DistributionSampler, p::BosipProblem)
-    ref = reference(problem)
-    logpost_est = log_posterior_estimate(problem)
-    return calculate_score(metric.metric, ref, logpost_est, sampler, p)
-end
 function calculate_score(cb::MetricCallback, p::BosipProblem)
     return calculate_score(cb.metric, cb.reference, cb.logpost_estimator, cb.sampler, p)
 end

@@ -5,12 +5,12 @@ using CairoMakie
 
 import ..AbstractProblem
 import ..reference
-import ..log_posterior_estimate
 
 include("../data_paths.jl")
 
 @kwdef mutable struct PlotCB <: BosipCallback
     problem::AbstractProblem
+    estimator::Function
     sampler::DistributionSampler
     sample_count::Int
     plot_each::Int = 10
@@ -23,17 +23,17 @@ function (cb::PlotCB)(bosip::BosipProblem; term_cond, first, kwargs...)
     first || (cb.iters += 1)
     (cb.iters % cb.plot_each == 0) || return
 
-    plot_state(bosip, cb.problem, cb.sampler, cb.sample_count, cb.iters; cb.resolution, cb.save_plots)
+    plot_state(bosip, cb.estimator, cb.problem, cb.sampler, cb.sample_count, cb.iters; cb.resolution, cb.save_plots)
 end
 
-function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::DistributionSampler, sample_count::Int, iter::Int; resolution=500, save_plots=false)
+function plot_state(bosip::BosipProblem, estimator::Function, p::AbstractProblem, sampler::DistributionSampler, sample_count::Int, iter::Int; resolution=500, save_plots=false)
     ref = reference(p)
     domain = bosip.problem.domain
     lb, ub = domain.bounds
     X = bosip.problem.data.X
     
     ### log-posteriors
-    est_logpost = log_posterior_estimate(p)(bosip)
+    est_logpost = estimator(bosip)
     if ref isa Function
         ref_logpost = ref
     end
@@ -80,7 +80,7 @@ function plot_state(bosip::BosipProblem, p::AbstractProblem, sampler::Distributi
     ### ### ### THE FIGURE ### ### ###
     fig = Figure()
     # TODO title
-    title = string(log_posterior_estimate(p)) |> exp_title
+    title = string(estimator) |> exp_title
     # title = "Log-Likelihood Model"
     # title = "Simulator Output Model"
     # title = bosip.problem.acquisition.acq |> typeof |> nameof |> string
