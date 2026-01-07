@@ -1,4 +1,4 @@
 venv/
 slurm-*
-data/
+data*
 plots/
