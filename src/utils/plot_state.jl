@@ -78,24 +78,26 @@ function plot_state(bosip::BosipProblem, estimator::Function, p::AbstractProblem
 
 
     ### ### ### THE FIGURE ### ### ###
-    fig = Figure()
+    fig = Figure(; resolution = (600, 600) )
     # TODO title
     title = string(estimator) |> exp_title
-    # title = "Log-Likelihood Model"
-    # title = "Simulator Output Model"
+    # title = "log-likelihood model"
+    # title = "simulator output model"
     # title = bosip.problem.acquisition.acq |> typeof |> nameof |> string
     
     ax = Axis(
         fig[1, 1],
+        # TODO labels
         xlabel="x₁", ylabel="x₂",
-        # xlabel="a", ylabel="b",
+        # xlabel = L"\text{parameter } a", ylabel = L"\text{parameter } b",
         title=title,
         xlabelsize=20, ylabelsize=20, titlesize=20,
-        xticklabelsize=16, yticklabelsize=16
+        xticklabelsize=16, yticklabelsize=16,
+        aspect = AxisAspect(1),
     )
 
     ### contour fill
-    contourf!(ax, x, y, Z_est)
+    # contourf!(ax, x, y, Z_est; colormap=:matter)
 
     ### samples
     # TODO
@@ -109,9 +111,9 @@ function plot_state(bosip::BosipProblem, estimator::Function, p::AbstractProblem
     
     ### contours
     if ref isa Function
-        contour!(ax, x, y, Z_ref; levels=cs_ref, linestyle=:dash, color=:grey)
+        contour!(ax, x, y, Z_ref; levels=cs_ref, color=:blue, linewidth=2)
     end
-    contour!(ax, x, y, Z_est; levels=cs_est, color=:red)
+    contour!(ax, x, y, Z_est; levels=cs_est, color=:red, linewidth=2)
 
     ### legend
     # axislegend(ax)
@@ -120,6 +122,7 @@ function plot_state(bosip::BosipProblem, estimator::Function, p::AbstractProblem
         dir = plot_dir() * "/state_plots"
         mkpath(dir)
         save(dir * "/" * string(typeof(p)) * "_$iter.png", fig)
+        # save(dir * "/" * string(typeof(p)) * "_$iter.pdf", fig)
     else
         display(fig)
     end
