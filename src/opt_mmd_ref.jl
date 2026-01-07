@@ -66,26 +66,29 @@ end
 function sample_ref_mmd(ref::AbstractMatrix{<:Real}, domain::Domain, mmd_samples::Int, x_samples::Int;
     parallel = false,
 )
-    ref_samples = size(ref, 2)
-    @assert ref_samples >= 20 * (2 * x_samples) "Not enough reference samples for subsampling."
-    bounds = domain.bounds
+    @error "Don't calculate ref. MMD values from reference posterior samples. Use a reference posterior pdf instead."
+    @assert false
 
-    metric = OptMMDMetric(;
-        kernel = GaussianKernel(),
-        bounds = bounds,
-        algorithm = BOBYQA(),
-    )
+    # ref_samples = size(ref, 2)
+    # @assert ref_samples >= 20 * (2 * x_samples) "Not enough reference samples for subsampling."
+    # bounds = domain.bounds
 
-    ### the calculation
-    mmd_vals = Float64[]
-    for i in 1:mmd_samples
-        _perm = randperm(ref_samples)
-        xs_a = ref[:,_perm[1:x_samples]]
-        xs_b = ref[:,_perm[x_samples+1:2*x_samples]]
+    # metric = OptMMDMetric(;
+    #     kernel = GaussianKernel(),
+    #     bounds = bounds,
+    #     algorithm = BOBYQA(),
+    # )
 
-        val = calculate_metric(metric, xs_a, xs_b)
-        push!(mmd_vals, val)
-    end
+    # ### the calculation
+    # mmd_vals = Float64[]
+    # for i in 1:mmd_samples
+    #     _perm = randperm(ref_samples)
+    #     xs_a = ref[:,_perm[1:x_samples]]
+    #     xs_b = ref[:,_perm[x_samples+1:2*x_samples]]
 
-    return mmd_vals
+    #     val = calculate_metric(metric, xs_a, xs_b)
+    #     push!(mmd_vals, val)
+    # end
+
+    # return mmd_vals
 end
